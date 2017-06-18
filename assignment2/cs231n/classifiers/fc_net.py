@@ -178,6 +178,11 @@ class FullyConnectedNet(object):
     for i in range(self.num_layers - 1):
         self.params['W%d' % (i+1)] = weight_scale * np.random.randn(preD, hidden_dims[i])
         self.params['b%d' % (i+1)] = np.zeros(hidden_dims[i])
+        if self.use_batchnorm:
+            #self.params['gamma%d' % (i+1)] = np.ones(hidden_dims[i])
+            #self.params['beta%d' % (i+1)] = np.zeros(hidden_dims[i])
+            self.params['gamma%d' % (i+1)] = np.ones(preD)
+            self.params['beta%d' % (i+1)] = np.zeros(preD)
         preD = hidden_dims[i]
     self.params['W%d' % (self.num_layers)] = weight_scale * np.random.randn(preD,num_classes)
     self.params['b%d' % (self.num_layers)] = weight_scale * np.random.randn(num_classes)
@@ -223,7 +228,7 @@ class FullyConnectedNet(object):
       self.dropout_param['mode'] = mode
     if self.use_batchnorm:
       for bn_param in self.bn_params:
-        bn_param[mode] = mode
+        bn_param['mode'] = mode
 
     scores = None
     ############################################################################
@@ -241,10 +246,17 @@ class FullyConnectedNet(object):
     #pass
     caches = {}
     preX = X
+    res = None
+    cache = None
     for i in range(self.num_layers - 1):
         w = self.params['W%d' % (i+1)]
         b = self.params['b%d' % (i+1)]
-        res, cache = affine_relu_forward(preX, w, b)
+        if self.use_batchnorm:
+            beta = self.params['beta%d' % (i+1)]
+            gamma = self.params['gamma%d' % (i+1)]
+            res, cache = affine_batch_relu_forward(preX, w, b, gamma, beta, self.bn_params[i])
+        else:
+            res, cache = affine_relu_forward(preX, w, b)
         caches[i] = cache
         preX = res
 
@@ -278,7 +290,10 @@ class FullyConnectedNet(object):
     preG, grads['W%d' % l], grads['b%d' % l] = affine_backward(dout, lastCache)
     grads['W%d' % l] += self.reg * self.params['W%d' % l]
     for i in range(self.num_layers - 1)[::-1]:
-        preG, grads['W%d' %(i+1)], grads['b%d'%(i+1)] = affine_relu_backward(preG, caches[i])
+        if self.use_batchnorm:
+            preG, grads['W%d' %(i+1)], grads['b%d'%(i+1)], grads['gamma%d' %(i+1)], grads['beta%d'%(i+1)] = affine_batch_relu_backward(preG, caches[i])
+        else:
+            preG, grads['W%d' %(i+1)], grads['b%d'%(i+1)] = affine_relu_backward(preG, caches[i])
         grads['W%d' % (i+1)] += self.reg * self.params['W%d' % (i+1)]
     ############################################################################
     #                             END OF YOUR CODE                             #
