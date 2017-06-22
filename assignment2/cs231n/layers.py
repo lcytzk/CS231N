@@ -407,7 +407,22 @@ def conv_forward_naive(x, w, b, conv_param):
   # TODO: Implement the convolutional forward pass.                           #
   # Hint: you can use the function np.pad for padding.                        #
   #############################################################################
-  pass
+  #pass
+  stride = conv_param['stride']
+  pad = conv_param['pad']
+  N, C, H, W = x.shape
+  F, C, HH, WW = w.shape
+  H_ = 1 + (H + 2 * pad - HH) / stride
+  W_ = 1 + (W + 2 * pad - WW) / stride
+  out = np.zeros((N, F, H_, W_))
+  x_pad = np.pad(x, ((0,), (0,), (pad,), (pad,)), mode='constant', constant_values=0)
+  for h in range(H_):
+    for ww in range(W_):
+      sub_x = x_pad[:,:,h*stride:h*stride+HH, ww*stride:ww*stride+WW]
+      for i in range(F):
+        out[:, i, h, ww] = np.sum(sub_x * w[i, :, :, :], axis=(1,2,3))
+
+  out += (b)[None, :, None, None]    
   #############################################################################
   #                             END OF YOUR CODE                              #
   #############################################################################
@@ -432,7 +447,31 @@ def conv_backward_naive(dout, cache):
   #############################################################################
   # TODO: Implement the convolutional backward pass.                          #
   #############################################################################
-  pass
+  #pass
+  x, w, b, conv_param = cache
+  stride = conv_param['stride']
+  pad = conv_param['pad']
+  N, C, H, W = x.shape
+  F, C, HH, WW = w.shape
+  H_ = 1 + (H + 2 * pad - HH) / stride
+  W_ = 1 + (W + 2 * pad - WW) / stride
+  x_pad = np.pad(x, ((0,), (0,), (pad,), (pad,)), mode='constant', constant_values=0)
+  dx = np.zeros(x.shape)
+  dx_pad = np.zeros(x_pad.shape)
+  dw = np.zeros(w.shape)
+  db = np.zeros(b.shape)
+
+  for h in range(H_):
+    for ww in range(W_):
+      sub_x = x_pad[:, :, h*stride:h*stride+HH, ww*stride:ww*stride+WW]
+      for i in range(F):
+        dw[i,:,:,:] += np.sum(sub_x * (dout[:,i, h,ww])[:, None, None, None], axis=0)
+      for i in range(N):
+        dx_pad[i,:,h*stride:h*stride+HH, ww*stride:ww*stride+WW] += np.sum((w[:, :, :, :] *(dout[i, :, h, ww])[:,None ,None, None]), axis=0)
+
+  dx = dx_pad[:,:,pad:-pad,pad:-pad]
+  db = np.sum(dout, axis = (0,2,3))
+
   #############################################################################
   #                             END OF YOUR CODE                              #
   #############################################################################
@@ -458,7 +497,15 @@ def max_pool_forward_naive(x, pool_param):
   #############################################################################
   # TODO: Implement the max pooling forward pass                              #
   #############################################################################
-  pass
+  #pass
+  N, C, H, W = x.shape
+  HH, WW, stride = pool_param['pool_height'], pool_param['pool_width'], pool_param['stride']
+  H_ = (H-HH)/stride+1
+  W_ = (W-WW)/stride+1
+  out = np.zeros((N, C, H_, W_))
+  for i in range(H_):
+    for j in range(W_):
+      out[:,:,i,j] = np.max(x[:,:,i*stride:i*stride+HH,j*stride:j*stride+WW], axis=(2,3))
   #############################################################################
   #                             END OF YOUR CODE                              #
   #############################################################################
@@ -481,7 +528,21 @@ def max_pool_backward_naive(dout, cache):
   #############################################################################
   # TODO: Implement the max pooling backward pass                             #
   #############################################################################
-  pass
+  #pass
+  x, pool_param = cache
+  N, C, H, W = x.shape
+  HH, WW, stride = pool_param['pool_height'], pool_param['pool_width'], pool_param['stride']
+  H_ = (H-HH)/stride+1
+  W_ = (W-WW)/stride+1
+  dx = np.zeros(x.shape)
+
+  for i in range(H_):
+    for j in range(W_):
+      sub_x = x[:,:, i*stride:i*stride+HH, j*stride:j*stride+WW]
+      max_x = np.max(sub_x, axis=(2,3))
+      find_x = (sub_x == (max_x)[:,:,None,None])
+      dx[:,:,i*stride:i*stride+HH, j*stride:j*stride+WW] += find_x * (dout[:,:,i,j])[:,:,None,None]
+
   #############################################################################
   #                             END OF YOUR CODE                              #
   #############################################################################
