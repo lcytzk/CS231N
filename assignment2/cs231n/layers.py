@@ -416,13 +416,13 @@ def conv_forward_naive(x, w, b, conv_param):
   W_ = 1 + (W + 2 * pad - WW) / stride
   out = np.zeros((N, F, H_, W_))
   x_pad = np.pad(x, ((0,), (0,), (pad,), (pad,)), mode='constant', constant_values=0)
-  for h in range(H_):
-    for ww in range(W_):
-      sub_x = x_pad[:,:,h*stride:h*stride+HH, ww*stride:ww*stride+WW]
-      for i in range(F):
+  for i in range(F):
+    for h in range(H_):
+      for ww in range(W_):
+        sub_x = x_pad[:,:,h*stride:h*stride+HH, ww*stride:ww*stride+WW]
         out[:, i, h, ww] = np.sum(sub_x * w[i, :, :, :], axis=(1,2,3))
 
-  out += (b)[None, :, None, None]    
+  out += (b)[None, :, None, None]
   #############################################################################
   #                             END OF YOUR CODE                              #
   #############################################################################
@@ -580,7 +580,10 @@ def spatial_batchnorm_forward(x, gamma, beta, bn_param):
   # version of batch normalization defined above. Your implementation should  #
   # be very short; ours is less than five lines.                              #
   #############################################################################
-  pass
+  #pass
+  N, C, H, W = x.shape
+  tmp_out, cache = batchnorm_forward(x.transpose(0,3,2,1).reshape((N*H*W,C)), gamma, beta, bn_param)
+  out = tmp_out.reshape(N,W,H,C).transpose(0,3,2,1)
   #############################################################################
   #                             END OF YOUR CODE                              #
   #############################################################################
@@ -610,7 +613,10 @@ def spatial_batchnorm_backward(dout, cache):
   # version of batch normalization defined above. Your implementation should  #
   # be very short; ours is less than five lines.                              #
   #############################################################################
-  pass
+  #pass
+  N,C,H,W = dout.shape
+  dx, dgamma, dbeta = batchnorm_backward_alt(dout.transpose(0,3,2,1).reshape((N*H*W,C)),cache)
+  dx = dx.reshape(N,W,H,C).transpose(0,3,2,1)
   #############################################################################
   #                             END OF YOUR CODE                              #
   #############################################################################
